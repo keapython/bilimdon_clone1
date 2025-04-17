@@ -1,21 +1,24 @@
 from fastapi import APIRouter, HTTPException, Depends
-from app.database  import * 
 from app.schemas.topic import TopicResponse, TopicCreate
 from app.models import Topic
-from app.utils import *
-from app.dependencies import db_dep
+from app.dependencies import db_dep, current_user_dep, admin_user_dep
 
 
 router = APIRouter(
-    prefix="/topic",
-    tags=["topic"],
+    prefix="/topics",
+    tags=["topics"],
     )
 
 
-@router.post("/", response_model=TopicResponse)
+@router.get("/", response_model=list[TopicResponse])
+async def get_topics(db: db_dep):
+    return db.query(Topic).all()
+
+@router.post("/create/", response_model=TopicResponse)
 async def create_topic(
     db: db_dep,
     topic:TopicCreate,
+    admin_user: admin_user_dep
     ):
 
     is_topic_exists = db.query(Topic).filter(Topic.name == topic.name).first()
@@ -36,10 +39,11 @@ async def create_topic(
     return db_topic
 
 
-@router.delete("/{topic_id}", response_model=TopicResponse)
+@router.delete("/{topic_id}")
 async def delete_topic(
     db: db_dep,
     topic_id: int,
+    admin_user: admin_user_dep
     ):
 
     db_topic = db.query(Topic).filter(Topic.id == topic_id).first()
@@ -52,4 +56,8 @@ async def delete_topic(
     db.delete(db_topic)
     db.commit()
     
-    return db_topic
+    return {
+        "topic_id": topic_id,
+        "message": "Topic deleted."
+    }
+
